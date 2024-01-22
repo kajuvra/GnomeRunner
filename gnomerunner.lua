@@ -246,7 +246,7 @@ SlashCmdList["START_RACE"] = function(msg)
                 end
             })
 
-            -- Add the following line to play the sound and send addon message
+            -- Testing Git Add the following line to play the sound and send addon message
             PlayRaceStartSound()
         else
             -- End the existing race if a new one is started
@@ -333,7 +333,7 @@ GnomeRunner.frame:SetScript("OnEvent", function(self, event, ...)
         CountRacers()
     end
 end) --- Third paste 
--- Function to play the race start sound and send addon message
+
 local function PlayRaceStartSound()
     PlaySoundFile(soundFile)
 
@@ -413,7 +413,6 @@ local function UpdateTimer()
     end
 end
 
--- Function to count the number of racers in the raid
 local function CountRacers()
     local numberOfRaiders = 0
     for index = 1, IsInRaid() and _G.MAX_RAID_MEMBERS or _G.MEMBERS_PER_RAID_GROUP do
@@ -628,7 +627,7 @@ SlashCmdList["START_RACE"] = function(msg)
                         print("Sound played locally")
                     end
                 end
-            })
+            )
 
             -- Add the following line to play the sound and send addon message
             PlayRaceStartSound()
