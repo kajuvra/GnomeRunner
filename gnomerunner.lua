@@ -63,7 +63,7 @@ GnomeRunner.EndRace = function()
     end
 end
 
-GGnomeRunner.CountRacers = function()
+GnomeRunner.CountRacers = function()
     local numberOfRaiders = 0
     local playerGUID = GnomeRunner.playerGUID
 
@@ -90,18 +90,31 @@ GnomeRunner.CheckPlayer = function()
     local _, instanceType, _, _, _, _, _, instanceMapID = GetInstanceInfo()
 
     if inRaid and instanceType == "raid" then
-        GnomeRunner.CountRacers()  -- Corrected function call
+        -- Move the GnomeRunner.CountRacers function outside of the CheckPlayer function
+        GnomeRunner.CountRacers()
         GnomeRunner.totalDeaths = 0  -- Reset totalDeaths
+    end
+end
 
-        for i = 1, GetNumGroupMembers() do  -- Using GetNumGroupMembers for better adaptability
-            local unit = "raid" .. i
+-- Move the GnomeRunner.CountRacers function outside of the CheckPlayer function
+GnomeRunner.CountRacers = function()
+    local numberOfRaiders = 0
+    local playerGUID = GnomeRunner.playerGUID
 
-            if UnitIsDeadOrGhost(unit) and UnitName(unit) == playerName then
-                GnomeRunner.totalDeaths = GnomeRunner.totalDeaths + 1
-                SendChatMessage(playerName .. " has died!", "RAID_WARNING")
+    for index = 1, IsInRaid() and _G.MAX_RAID_MEMBERS or _G.MEMBERS_PER_RAID_GROUP do
+        local _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, isAssistant, _, _ = GetRaidRosterInfo(index)
+
+        if isAssistant then
+            -- Skip assistants
+        else
+            local unitGUID = UnitGUID("raid" .. index)
+            if unitGUID and unitGUID ~= playerGUID then
+                numberOfRaiders = numberOfRaiders + 1
             end
         end
     end
+
+    GnomeRunner.totalRacers = numberOfRaiders
 end
 
 -- New function to set the payout
@@ -252,7 +265,7 @@ function GnomeRunner.HandleSlashCommand(msg)
             print("Usage: /gr payout [amount]")
         end
     else
-        print("Unknown command. Available commands: startrace, endrace, info, setrace, payout")
+        print("Unknown command. Available commands: startrace, endrace, info, namerace, payout")
     end
 end
 
