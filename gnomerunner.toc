@@ -1,0 +1,7 @@
+## Interface: 30403
+## Title: Gnome Runner
+## Author: Kajuvra
+## Version: 0.0.2
+## Notes: This addon is for checking when a level 1 gnome tosses a flare
+
+gnomerunner.lua
