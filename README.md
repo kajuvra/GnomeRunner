@@ -45,9 +45,9 @@ And to all the Members of Kingdom and the Atiesh Community Discord https://disco
 
 ## NOT WORKING 
 
-Sending Sound at start of race to other users (GnomeMaleCharge03.ogg)
+Sending Sound at start of race to other users (GnomeMaleCharge03.ogg).
 Reporting of Correct amount of Raiders who are not Raid Leader / Assistant "Racers" during end of race. 
-Reporting of player deaths to raid leader and raid warning 
+Reporting of player deaths to raid leader and raid warning. 
 Addon loaded announcment and announcment to raid that the addon has been loaded. 
 Addon reporting back to raid lead and sending a raid warning that a flare spell has been used by someone in raid. 
 
@@ -57,8 +57,8 @@ Updates the race timer every 30 seconds and sends a chat message every 30 minute
 Status Command: 
 A command to list the current status of the race and report it to raid chat. 
 Addon Communication: 
-The ability for the raid leaders addon to trigger the play gnome starting sound ((GnomeMaleCharge03.ogg)
-Report to raid leader and assistance that a user has used a flare spell and have the raid leader print that Racer has used a flare 
+The ability for the raid leaders addon to trigger the play gnome starting sound ((GnomeMaleCharge03.ogg). 
+Report to raid leader and assistance that a user has used a flare spell and have the raid leader print that Racer has used a flare.  
 Report to raid leader and assistance that a user has died and print that to raid chat. 
 
 
