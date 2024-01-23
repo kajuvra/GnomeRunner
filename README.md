@@ -4,17 +4,17 @@ GnomeRunner is a World of Warcraft addon designed to facilitate and manage race 
 
 ## Commands
 
-### /race 
-Starts a new race event. Only the raid leader can initiate a race. You must first have /payout and /Racename set before you can use /race. 
-
-### /payout PayoutAmount 
+### /gr payout
 Sets the prize pot for the race. This command must be used before starting a race.
 
 ### /racename Race Name 
 Sets the name for the race event. This command must be used before starting a race.
 
-### /endrace
+### /gr namerace
 Ends the current race event and displays final statistics.
+
+### /gr startrace 
+Starts a new race event. Only the raid leader can initiate a race. You must first have /payout and /Racename set before you can use /race. 
 
 ## Additional Information
 
