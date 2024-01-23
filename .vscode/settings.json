@@ -1,6 +1,15 @@
 {
     "Lua.diagnostics.globals": [
         "SlashCmdList",
-        "UnitAura"
+        "UnitAura",
+        "ChatFrame_AddMessageEventFilter",
+        "DEFAULT_CHAT_FRAME",
+        "InterfaceOptionsFrame_OpenToCategory",
+        "LOOT_ITEM_MULTIPLE",
+        "StaticPopupDialogs",
+        "LOOT_ITEM",
+        "LOOT_ITEM_SELF_MULTIPLE",
+        "LOOT_ITEM_SELF",
+        "StaticPopup_Show"
     ]
 }

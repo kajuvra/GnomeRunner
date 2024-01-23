@@ -131,7 +131,7 @@ GnomeRunner.payout = function(amount)
     end
 end
 
--- Modify the function to broadcast sound only if the player is the raid leader
+-- Function to trigger the sound for race start
 GnomeRunner.PlayRaceStartSound = function()
     if IsInRaid() and UnitIsGroupLeader("player") then
         PlaySoundFile(GnomeRunner.soundFile)
@@ -146,6 +146,22 @@ GnomeRunner.SetRaceName = function(newName)
     SendChatMessage("Race name set to: " .. newName, "RAID_WARNING")
 end
 
+-- Moved the definition of OnAddonLoaded above its call
+function GnomeRunner.OnAddonLoaded()
+    local function DelayedAnnouncement()
+        if IsInRaid() then
+            print("GnomeRunner addon loaded!")
+            SendChatMessage("Gnome Runner is active! To start a race, please use /gr payout.", "RAID_WARNING")
+        end
+    end
+
+    -- Delayed announcement for Gnome Runner usage
+    C_Timer.After(GnomeRunner.startDelay, DelayedAnnouncement)
+
+    GnomeRunner.RegisterSlashCommands()
+    GnomeRunner.InitializeFrame()
+end
+
 function GnomeRunner.StartRace()
     if not GnomeRunner.raceInProgress then
         GnomeRunner.raceInProgress = true
@@ -154,23 +170,27 @@ function GnomeRunner.StartRace()
         GnomeRunner.totalRacers = 0
         GnomeRunner.totalGoldDistributed = 0
 
-        -- Delayed announcement for Gnome Runner usage
-        C_Timer.After(GnomeRunner.startDelay, function()
-            SendChatMessage("Gnome Runner is active! To start a race, please use /gr payout.", "RAID_WARNING")
-        end)
-
         local countdown = GnomeRunner.countdownSeconds
+        local countTimer
+
+        local DisplayCountdown = function(count)
+            if count > 0 then
+                SendChatMessage(count, "RAID_WARNING")
+            else
+                SendChatMessage("GO GO GO! " .. GnomeRunner.raceName .. " has just begun!", "RAID_WARNING")
+                GnomeRunner.PlayRaceStartSound()
+            end
+        end
+
         countTimer = C_Timer.NewTicker(1, function()
             if countdown == GnomeRunner.countdownSeconds then
                 SendChatMessage("The Race: " .. GnomeRunner.raceName .. " is starting!", "RAID_WARNING")
             end
 
-            if countdown > 0 then
-                SendChatMessage(countdown, "RAID_WARNING")
-                countdown = countdown - 1
-            else
-                SendChatMessage("GO GO GO! " .. GnomeRunner.raceName .. " has just begun!", "RAID_WARNING")
-                GnomeRunner.PlayRaceStartSound()
+            DisplayCountdown(countdown)
+
+            countdown = countdown - 1
+            if countdown < 0 then
                 countTimer:Cancel()
                 GnomeRunner.frame:SetScript("OnUpdate", function(_, elapsed)
                     GnomeRunner.OnUpdate(elapsed)
@@ -197,9 +217,9 @@ function GnomeRunner.OnEvent(self, event, arg1, arg2, arg3, arg4, arg5, arg6, ar
 end
 
 -- Add a variable for the delay
-GnomeRunner.startDelay = 20
+GnomeRunner.startDelay = 5
 
-function GnomeRunner.OnAddonLoaded()
+function GnomeRunner.OnGroupRosterUpdate()
     local function DelayedAnnouncement()
         if IsInRaid() then
             print("GnomeRunner addon loaded!")
@@ -214,6 +234,10 @@ function GnomeRunner.OnAddonLoaded()
     GnomeRunner.InitializeFrame()
 end
 
+GnomeRunner.frame:RegisterEvent("GROUP_ROSTER_UPDATE")
+GnomeRunner.frame:SetScript("OnEvent", function(_, event, ...)
+    GnomeRunner.OnEvent(_, event, ...)
+end)
 
 function GnomeRunner.OnPlayerDead()
     GnomeRunner.CheckPlayer()
@@ -224,8 +248,10 @@ function GnomeRunner.OnRaidRosterUpdate()
 end
 
 function GnomeRunner.OnChatMsgAddon(prefix, message, channel, sender)
-    if GnomeRunner.OnAddonMessageReceived then
-        GnomeRunner.OnAddonMessageReceived(prefix, message, channel, sender)
+    if prefix == GnomeRunner.addonPrefix then
+        if message == "START_RACE_SOUND" then
+            PlaySoundFile(GnomeRunner.soundFile)
+        end
     end
 end
 
@@ -234,7 +260,7 @@ function GnomeRunner.OnPlayerEnteringWorld()
 end
 
 function GnomeRunner.RegisterSlashCommands()
-    -- Your existing slash command registration
+    -- The existing slash command registration
     SlashCmdList["GNOMERUNNER"] = function(msg)
         GnomeRunner.HandleSlashCommand(msg)
     end
@@ -243,27 +269,32 @@ function GnomeRunner.RegisterSlashCommands()
 end
 
 function GnomeRunner.HandleSlashCommand(msg)
-    -- Your existing slash command handling logic
-    if msg == "startrace" then
+    -- The existing slash command handling logic
+    if msg:find("^payout") then
+        local _, amount = strsplit(" ", msg, 2) -- Limit the split to 2 parts
+        if amount then
+            local numericAmount = tonumber(amount:match("(%d+)"))
+            if numericAmount then
+                GnomeRunner.payout(numericAmount)
+            else
+                print("Error: Invalid payout amount.")
+            end
+        else
+            print("Usage: /gr payout [amount]")
+        end
+    elseif msg:find("namerace") then
+        local _, newName = strsplit(" ", msg, 2) -- Limit the split to 2 parts
+        if newName then
+            GnomeRunner.SetRaceName(newName)
+        else
+            print("Usage: /gr namerace [new race name]")
+        end
+    elseif msg == "startrace" then
         GnomeRunner.StartRace()
     elseif msg == "endrace" then
         GnomeRunner.EndRace()
     elseif msg == "info" then
         GnomeRunner.PrintRaceInfo()
-    elseif msg:match("^namerace") then
-    local _, newName = strsplit(" ", msg)
-    if newName then
-        GnomeRunner.SetRaceName(newName)
-    else
-        print("Usage: /gr namerace [new race name]")
-    end
-    elseif msg:match("^payout") then
-        local _, amount = strsplit(" ", msg)
-        if amount then
-            GnomeRunner.payout(tonumber(amount))
-        else
-            print("Usage: /gr payout [amount]")
-        end
     else
         print("Unknown command. Available commands: startrace, endrace, info, namerace, payout")
     end
