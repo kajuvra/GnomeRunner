@@ -70,8 +70,8 @@ GnomeRunner.CountRacers = function()
     for index = 1, IsInRaid() and _G.MAX_RAID_MEMBERS or _G.MEMBERS_PER_RAID_GROUP do
         local _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, isAssistant, _, _ = GetRaidRosterInfo(index)
         
-        if isAssistant then
-            -- Skip assistants
+        if isAssistant or UnitIsGroupLeader("raid" .. index) then
+            -- Skip leader and assistants
         else
             local unitGUID = UnitGUID("raid" .. index)
             if unitGUID and unitGUID ~= playerGUID then
