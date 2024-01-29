@@ -67,7 +67,7 @@ GnomeRunner.CountRacers = function()
     local numberOfRaiders = 0
     local playerGUID = GnomeRunner.playerGUID
 
-    for index = 1, IsInRaid() and _G.MAX_RAID_MEMBERS or _G.MEMBERS_PER_RAID_GROUP do
+    for index = 1, IsInRaid() and 40 or 40 do
         local _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, isAssistant, _, _ = GetRaidRosterInfo(index)
         
         if isAssistant or UnitIsGroupLeader("raid" .. index) then
@@ -83,38 +83,49 @@ GnomeRunner.CountRacers = function()
     GnomeRunner.totalRacers = numberOfRaiders
 end
 
-GnomeRunner.CheckPlayer = function()
+-- Modify the CheckPlayer function to store the raid leader's name
+function GnomeRunner.CheckPlayer()
     local playerName = UnitName("player")
 
     local inRaid = IsInRaid()
     local _, instanceType, _, _, _, _, _, instanceMapID = GetInstanceInfo()
 
     if inRaid and instanceType == "raid" then
-        -- Move the GnomeRunner.CountRacers function outside of the CheckPlayer function
+        local leaderIndex
+        for index = 1, GetNumGroupMembers() do
+            local _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, isAssistant, _, _ = GetRaidRosterInfo(index)
+            
+            if isAssistant or UnitIsGroupLeader("raid" .. index) then
+                leaderIndex = index
+                break  -- Exit the loop once the leader or assistant is found
+            end
+        end
+
+        if leaderIndex then
+            GnomeRunner.raidLeader = GetRaidRosterInfo(leaderIndex)
+        end
+
         GnomeRunner.CountRacers()
         GnomeRunner.totalDeaths = 0  -- Reset totalDeaths
     end
 end
 
--- Move the GnomeRunner.CountRacers function outside of the CheckPlayer function
-GnomeRunner.CountRacers = function()
-    local numberOfRaiders = 0
-    local playerGUID = GnomeRunner.playerGUID
 
-    for index = 1, IsInRaid() and _G.MAX_RAID_MEMBERS or _G.MEMBERS_PER_RAID_GROUP do
-        local _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, isAssistant, _, _ = GetRaidRosterInfo(index)
+-- Modify the existing CheckFlareUsage function
+GnomeRunner.CheckFlareUsage = function(spellID)
+    if GnomeRunner.raceInProgress then
+        local playerName = UnitName("player")
 
-        if isAssistant then
-            -- Skip assistants
-        else
-            local unitGUID = UnitGUID("raid" .. index)
-            if unitGUID and unitGUID ~= playerGUID then
-                numberOfRaiders = numberOfRaiders + 1
+        if GnomeRunner.flareSpellIDs[spellID] then
+            if UnitIsGroupLeader("player") then
+                SendChatMessage(playerName .. " used a flare!", "RAID")
+                GnomeRunner.ReportFlareUsage(playerName) -- Report flare usage to the addon
+            else
+                C_ChatInfo.SendAddonMessage(GnomeRunner.addonPrefix, "FLARE_USED:" .. playerName .. ":" .. spellID, "WHISPER", GnomeRunner.raidLeader)
+
             end
         end
     end
-
-    GnomeRunner.totalRacers = numberOfRaiders
 end
 
 -- New function to set the payout
@@ -163,6 +174,8 @@ function GnomeRunner.OnAddonLoaded()
 end
 
 function GnomeRunner.StartRace()
+    print("StartRace function called")  -- Add this line for debugging
+
     if not GnomeRunner.raceInProgress then
         GnomeRunner.raceInProgress = true
         GnomeRunner.raceStartTime = GetServerTime()
@@ -239,8 +252,26 @@ GnomeRunner.frame:SetScript("OnEvent", function(_, event, ...)
     GnomeRunner.OnEvent(_, event, ...)
 end)
 
+-- New function to announce player deaths in raid chat
+function GnomeRunner.AnnouncePlayerDeath(playerName)
+    SendChatMessage(playerName .. " has died!", "RAID")
+end
+
+-- Modify the existing OnPlayerDead function
 function GnomeRunner.OnPlayerDead()
     GnomeRunner.CheckPlayer()
+
+    if GnomeRunner.raceInProgress then
+        local playerName = UnitName("player")
+
+        if UnitIsGroupLeader("player") then
+            GnomeRunner.AnnouncePlayerDeath(playerName) -- Announce player death in raid chat
+        else
+            C_ChatInfo.SendAddonMessage (GnomeRunner.addonPrefix, "PLAYER_DEAD:" .. playerName, "WHISPER", GnomeRunner.raidLeader)
+        end
+
+        GnomeRunner.totalDeaths = GnomeRunner.totalDeaths + 1
+    end
 end
 
 function GnomeRunner.OnRaidRosterUpdate()
@@ -269,34 +300,51 @@ function GnomeRunner.RegisterSlashCommands()
 end
 
 function GnomeRunner.HandleSlashCommand(msg)
-    -- The existing slash command handling logic
-    if msg:find("^payout") then
-        local _, amount = strsplit(" ", msg, 2) -- Limit the split to 2 parts
-        if amount then
-            local numericAmount = tonumber(amount:match("(%d+)"))
-            if numericAmount then
-                GnomeRunner.payout(numericAmount)
+    local isRaidLeader = UnitIsGroupLeader("player")
+
+    local command, arg = strmatch(msg, "^(%S+)%s*(.-)$")
+
+    local function printUsage(message)
+        print(message)
+    end
+
+    if command == "startrace" then
+        if isRaidLeader then
+            GnomeRunner.StartRace()
+        else
+            printUsage("You must be a raid leader to start the race.")
+        end
+    elseif command == "endrace" then
+        if isRaidLeader then
+            GnomeRunner.EndRace()
+        else
+            printUsage("You must be a raid leader to end the race.")
+        end
+    elseif command == "info" then
+        GnomeRunner.PrintRaceInfo()
+    elseif command == "namerace" then
+        if isRaidLeader then
+            if arg and arg ~= "" then
+                GnomeRunner.SetRaceName(arg)
             else
-                print("Error: Invalid payout amount.")
+                printUsage("Usage: /gr namerace [new race name]")
             end
         else
-            print("Usage: /gr payout [amount]")
+            printUsage("You must be a raid leader to use this command.")
         end
-    elseif msg:find("namerace") then
-        local _, newName = strsplit(" ", msg, 2) -- Limit the split to 2 parts
-        if newName then
-            GnomeRunner.SetRaceName(newName)
+    elseif command == "payout" then
+        if isRaidLeader then
+            local amount = tonumber(arg)
+            if amount then
+                GnomeRunner.payout(amount)
+            else
+                printUsage("Usage: /gr payout [amount]")
+            end
         else
-            print("Usage: /gr namerace [new race name]")
+            printUsage("You must be a raid leader to use this command.")
         end
-    elseif msg == "startrace" then
-        GnomeRunner.StartRace()
-    elseif msg == "endrace" then
-        GnomeRunner.EndRace()
-    elseif msg == "info" then
-        GnomeRunner.PrintRaceInfo()
     else
-        print("Unknown command. Available commands: startrace, endrace, info, namerace, payout")
+        printUsage("Unknown command. Available commands: startrace, endrace, info, namerace, payout")
     end
 end
 
@@ -316,8 +364,9 @@ function GnomeRunner.PrintRaceInfo()
     print("Race Name: " .. GnomeRunner.raceName)
     print("Total Racers: " .. GnomeRunner.totalRacers)
     print("Total Deaths: " .. GnomeRunner.totalDeaths)
-    print("Total Gold Distributed: " .. GnomeRunner.totalGoldDistributed)
-    print("Race: " .. tostring(GnomeRunner.raceInProgress))
+    print("Total Gold Distributed: " .. GnomeRunner.prizePot)
+    print("Payout Set: " .. tostring(GnomeRunner.payoutSet))
+    print("Race In Progress: " .. tostring(GnomeRunner.raceInProgress))
     SendChatMessage(playerCountMsg, "RAID_WARNING")
 end
 
