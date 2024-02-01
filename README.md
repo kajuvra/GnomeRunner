@@ -44,9 +44,7 @@ Alone
 And to all the Members of Kingdom and the Atiesh Community Discord https://discord.gg/atiesh
 
 ## NOT WORKING 
-
 Sending Sound at start of race to other users (GnomeMaleCharge03.ogg).
-Reporting of Correct amount of Raiders who are not Raid Leader / Assistant "Racers" during end of race. 
 Reporting of player deaths to raid leader and raid warning. 
 Addon loaded announcment and announcment to raid that the addon has been loaded. 
 Addon reporting back to raid lead and sending a raid warning that a flare spell has been used by someone in raid. 
