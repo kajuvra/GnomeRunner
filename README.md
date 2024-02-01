@@ -44,6 +44,7 @@ Makan
 Vorx
 Seymorqueege 
 Alone
+SDPhantom
 And to all the Members of Kingdom and the Atiesh Community Discord https://discord.gg/atiesh
 
 ## NOT WORKING 
