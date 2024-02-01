@@ -10,6 +10,7 @@
         "LOOT_ITEM",
         "LOOT_ITEM_SELF_MULTIPLE",
         "LOOT_ITEM_SELF",
-        "StaticPopup_Show"
+        "StaticPopup_Show",
+        "MAX_RAID_MEMBERS"
     ]
 }

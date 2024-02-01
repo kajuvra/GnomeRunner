@@ -68,11 +68,10 @@ GnomeRunner.CountRacers = function()
     local playerGUID = GnomeRunner.playerGUID
 
     for index = 1, IsInRaid() and 40 or 40 do
-        local _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, isAssistant, _, _ = GetRaidRosterInfo(index)
-        
-        if isAssistant or UnitIsGroupLeader("raid" .. index) then
-            -- Skip leader and assistants
-        else
+        local _, rank = GetRaidRosterInfo(index)
+
+        -- Check if the player is not a raid leader or assistant (rank <= 0)
+        if not rank or rank <= 0 then
             local unitGUID = UnitGUID("raid" .. index)
             if unitGUID and unitGUID ~= playerGUID then
                 numberOfRaiders = numberOfRaiders + 1
@@ -359,12 +358,13 @@ function GnomeRunner.OnUpdate(elapsed)
 end
 
 function GnomeRunner.PrintRaceInfo()
+    GnomeRunner.CountRacers()  -- Add this line to ensure CountRacers is called
     local playerCountMsg = "Number of Players: " .. GnomeRunner.totalRacers
+    print("DEBUG: PrintRaceInfo - Total Racers: " .. GnomeRunner.totalRacers)  -- Add this line for debugging
     print("Race Information:")
     print("Race Name: " .. GnomeRunner.raceName)
     print("Total Racers: " .. GnomeRunner.totalRacers)
     print("Total Deaths: " .. GnomeRunner.totalDeaths)
-    print("Total Gold Distributed: " .. GnomeRunner.prizePot)
     print("Payout Set: " .. tostring(GnomeRunner.payoutSet))
     print("Race In Progress: " .. tostring(GnomeRunner.raceInProgress))
     SendChatMessage(playerCountMsg, "RAID_WARNING")
