@@ -11,6 +11,7 @@
         "LOOT_ITEM_SELF_MULTIPLE",
         "LOOT_ITEM_SELF",
         "StaticPopup_Show",
-        "MAX_RAID_MEMBERS"
+        "MAX_RAID_MEMBERS",
+        "MEMBERS_PER_RAID_GROUP"
     ]
 }

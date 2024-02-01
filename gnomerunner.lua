@@ -10,7 +10,6 @@ GnomeRunner.flareSpellIDs = {
     [30264] = true  -- Green Smoke Flare
 }
 
--- Moved addonPrefix and soundFile inside the GnomeRunner table
 GnomeRunner.addonPrefix = "GnomeRunner"
 GnomeRunner.soundFile = "Interface\\AddOns\\GnomeRunner\\Sounds\\GnomeMaleCharge03.ogg"
 
@@ -27,7 +26,26 @@ GnomeRunner.totalDeaths = 0
 GnomeRunner.totalRacers = 0
 GnomeRunner.totalGoldDistributed = 0
 
+-- Add the following line where you initialize your addon, such as in OnAddonLoaded function
+C_ChatInfo.RegisterAddonMessagePrefix(GnomeRunner.addonPrefix)
+
 GnomeRunner.playerGUID = UnitGUID("player")
+
+-- Moved the definition of OnAddonLoaded above its call
+function GnomeRunner.OnAddonLoaded()
+    local function Announcement()
+        if IsInRaid() then
+            print("GnomeRunner addon loaded!")
+            print("Gnome Runner is active! To start a race, please use /gr payout.")
+        end
+    end
+
+    -- Immediate announcement for Gnome Runner usage
+    Announcement()
+
+    GnomeRunner.RegisterSlashCommands()
+    GnomeRunner.InitializeFrame()
+end
 
 GnomeRunner.UpdateTimer = function()
     if GnomeRunner.raceInProgress then
@@ -66,8 +84,11 @@ end
 GnomeRunner.CountRacers = function()
     local numberOfRaiders = 0
     local playerGUID = GnomeRunner.playerGUID
+    local MEMBERS_PER_RAID_GROUP_DEFAULT = 40
 
-    for index = 1, IsInRaid() and 40 or 40 do
+    -- IsInRaid() and 40 or 40 This is always 40 btw
+    -- Could use IsInRaid() and _G.MAX_RAID_MEMBERS or _G.MEMBERS_PER_RAID_GROUP
+    for index = 1, IsInRaid() and MAX_RAID_MEMBERS or MEMBERS_PER_RAID_GROUP_DEFAULT do
         local _, rank = GetRaidRosterInfo(index)
 
         -- Check if the player is not a raid leader or assistant (rank <= 0)
@@ -109,7 +130,6 @@ function GnomeRunner.CheckPlayer()
     end
 end
 
-
 -- Modify the existing CheckFlareUsage function
 GnomeRunner.CheckFlareUsage = function(spellID)
     if GnomeRunner.raceInProgress then
@@ -121,9 +141,17 @@ GnomeRunner.CheckFlareUsage = function(spellID)
                 GnomeRunner.ReportFlareUsage(playerName) -- Report flare usage to the addon
             else
                 C_ChatInfo.SendAddonMessage(GnomeRunner.addonPrefix, "FLARE_USED:" .. playerName .. ":" .. spellID, "WHISPER", GnomeRunner.raidLeader)
-
             end
         end
+    end
+end
+
+-- New function to report flare usage to the raid leader
+GnomeRunner.ReportFlareUsage = function(playerName)
+    if GnomeRunner.raceInProgress then
+        local message = playerName .. " used a flare!"
+        SendChatMessage(message, "RAID")
+        print("Flare usage reported to raid leader:", message)
     end
 end
 
@@ -141,14 +169,6 @@ GnomeRunner.payout = function(amount)
     end
 end
 
--- Function to trigger the sound for race start
-GnomeRunner.PlayRaceStartSound = function()
-    if IsInRaid() and UnitIsGroupLeader("player") then
-        PlaySoundFile(GnomeRunner.soundFile)
-        C_ChatInfo.SendAddonMessage(GnomeRunner.addonPrefix, "START_RACE_SOUND", "RAID")
-    end
-end
-
 -- New function to set the race name with raid warning
 GnomeRunner.SetRaceName = function(newName)
     GnomeRunner.raceName = newName
@@ -156,24 +176,9 @@ GnomeRunner.SetRaceName = function(newName)
     SendChatMessage("Race name set to: " .. newName, "RAID_WARNING")
 end
 
--- Moved the definition of OnAddonLoaded above its call
-function GnomeRunner.OnAddonLoaded()
-    local function DelayedAnnouncement()
-        if IsInRaid() then
-            print("GnomeRunner addon loaded!")
-            SendChatMessage("Gnome Runner is active! To start a race, please use /gr payout.", "RAID_WARNING")
-        end
-    end
-
-    -- Delayed announcement for Gnome Runner usage
-    C_Timer.After(GnomeRunner.startDelay, DelayedAnnouncement)
-
-    GnomeRunner.RegisterSlashCommands()
-    GnomeRunner.InitializeFrame()
-end
-
+-- Inside the StartRace function
 function GnomeRunner.StartRace()
-    print("StartRace function called")  -- Add this line for debugging
+    print("StartRace function called")
 
     if not GnomeRunner.raceInProgress then
         GnomeRunner.raceInProgress = true
@@ -185,18 +190,26 @@ function GnomeRunner.StartRace()
         local countdown = GnomeRunner.countdownSeconds
         local countTimer
 
+        local StartRaceMessage = "The Race: " .. GnomeRunner.raceName .. " is starting!"
+        local GoGoGoMessage = "GO GO GO! " .. GnomeRunner.raceName .. " has just begun!"
+
         local DisplayCountdown = function(count)
             if count > 0 then
                 SendChatMessage(count, "RAID_WARNING")
             else
-                SendChatMessage("GO GO GO! " .. GnomeRunner.raceName .. " has just begun!", "RAID_WARNING")
-                GnomeRunner.PlayRaceStartSound()
+                local goGoGoMessage = "GO GO GO! " .. GnomeRunner.raceName .. " has just begun!"
+                SendChatMessage(goGoGoMessage, "RAID_WARNING")
+                print("Sending addon message: START_RACE")  -- Add this line for debugging
+                C_ChatInfo.SendAddonMessage(GnomeRunner.addonPrefix, "START_RACE", "RAID")  -- Add this line to trigger the sound
+        
+                -- Add the following line to trigger the sound for all raid members
+                C_ChatInfo.SendAddonMessage(GnomeRunner.addonPrefix, "START_RACE_SOUND", "RAID")
             end
         end
-
+        
         countTimer = C_Timer.NewTicker(1, function()
             if countdown == GnomeRunner.countdownSeconds then
-                SendChatMessage("The Race: " .. GnomeRunner.raceName .. " is starting!", "RAID_WARNING")
+                SendChatMessage(StartRaceMessage, "RAID_WARNING")
             end
 
             DisplayCountdown(countdown)
@@ -251,12 +264,6 @@ GnomeRunner.frame:SetScript("OnEvent", function(_, event, ...)
     GnomeRunner.OnEvent(_, event, ...)
 end)
 
--- New function to announce player deaths in raid chat
-function GnomeRunner.AnnouncePlayerDeath(playerName)
-    SendChatMessage(playerName .. " has died!", "RAID")
-end
-
--- Modify the existing OnPlayerDead function
 function GnomeRunner.OnPlayerDead()
     GnomeRunner.CheckPlayer()
 
@@ -265,21 +272,50 @@ function GnomeRunner.OnPlayerDead()
 
         if UnitIsGroupLeader("player") then
             GnomeRunner.AnnouncePlayerDeath(playerName) -- Announce player death in raid chat
+
+            -- Additional: Use UNIT_HEALTH for more reliable tracking
+            -- Example: if UnitHealth("player") == 0 then
+            --     GnomeRunner.AnnouncePlayerDeath(playerName)
+            -- end
         else
-            C_ChatInfo.SendAddonMessage (GnomeRunner.addonPrefix, "PLAYER_DEAD:" .. playerName, "WHISPER", GnomeRunner.raidLeader)
+            -- Additional: Verify raid leader status from CHAT_MSG_ADDON
+            local index = UnitInRaid("player")
+            if index then
+                local _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, isAssistant, _, _ = GetRaidRosterInfo(index)
+                if isAssistant or UnitIsGroupLeader("player") then
+                    C_ChatInfo.SendAddonMessage(GnomeRunner.addonPrefix, "PLAYER_DEAD:" .. playerName, "WHISPER", GnomeRunner.raidLeader)
+                end
+            else
+                print("Error: Player is not in raid.")
+            end
         end
 
         GnomeRunner.totalDeaths = GnomeRunner.totalDeaths + 1
     end
 end
 
-function GnomeRunner.OnRaidRosterUpdate()
-    GnomeRunner.CountRacers()
+-- New function to announce player deaths in raid chat
+function GnomeRunner.AnnouncePlayerDeath(playerName)
+    SendChatMessage(playerName .. " has died!", "RAID")
 end
 
+-- Function to trigger the sound for race start
+GnomeRunner.PlayRaceStartSound = function()
+    if IsInRaid() and UnitIsGroupLeader("player") then
+        PlaySoundFile(GnomeRunner.soundFile)
+        C_ChatInfo.SendAddonMessage(GnomeRunner.addonPrefix, "START_RACE_SOUND", "RAID")
+    end
+end
+
+-- Part of the code to receive the message and play the sound
 function GnomeRunner.OnChatMsgAddon(prefix, message, channel, sender)
     if prefix == GnomeRunner.addonPrefix then
-        if message == "START_RACE_SOUND" then
+        print("Addon message received:", message)
+
+        if message == "START_RACE" then
+            print("Received START_RACE. Playing sound.")
+            PlaySoundFile(GnomeRunner.soundFile)
+        elseif message == "START_RACE_SOUND" then
             PlaySoundFile(GnomeRunner.soundFile)
         end
     end

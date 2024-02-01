@@ -16,6 +16,9 @@ Ends the current race event and displays final statistics.
 ### /gr startrace 
 Starts a new race event. Only the raid leader can initiate a race. You must first have /payout and /Racename set before you can use /race. 
 
+### /gr info 
+Shows the current stats of the race in progress.
+
 ## Additional Information
 
 - Races can only be initiated by the raid leader.
@@ -44,9 +47,6 @@ Alone
 And to all the Members of Kingdom and the Atiesh Community Discord https://discord.gg/atiesh
 
 ## NOT WORKING 
-
-Sending Sound at start of race to other users (GnomeMaleCharge03.ogg).
-Reporting of Correct amount of Raiders who are not Raid Leader / Assistant "Racers" during end of race. 
 Reporting of player deaths to raid leader and raid warning. 
 Addon loaded announcment and announcment to raid that the addon has been loaded. 
 Addon reporting back to raid lead and sending a raid warning that a flare spell has been used by someone in raid. 
@@ -57,7 +57,6 @@ Updates the race timer every 30 seconds and sends a chat message every 30 minute
 Status Command: 
 A command to list the current status of the race and report it to raid chat. 
 Addon Communication: 
-The ability for the raid leaders addon to trigger the play gnome starting sound ((GnomeMaleCharge03.ogg). 
 Report to raid leader and assistance that a user has used a flare spell and have the raid leader print that Racer has used a flare.  
 Report to raid leader and assistance that a user has died and print that to raid chat. 
 
