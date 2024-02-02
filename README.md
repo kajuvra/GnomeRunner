@@ -49,14 +49,11 @@ And to all the Members of Kingdom and the Atiesh Community Discord https://disco
 
 ## NOT WORKING 
 Reporting of player deaths to raid leader and raid warning. 
-Addon loaded announcment and announcment to raid that the addon has been loaded. 
 Addon reporting back to raid lead and sending a raid warning that a flare spell has been used by someone in raid. 
 
 ## Todo List 
 Timer:
 Updates the race timer every 30 seconds and sends a chat message every 30 minutes.
-Status Command: 
-A command to list the current status of the race and report it to raid chat. 
 Addon Communication: 
 Report to raid leader and assistance that a user has used a flare spell and have the raid leader print that Racer has used a flare.  
 Report to raid leader and assistance that a user has died and print that to raid chat. 
