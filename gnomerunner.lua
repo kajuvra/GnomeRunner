@@ -31,20 +31,67 @@ C_ChatInfo.RegisterAddonMessagePrefix(GnomeRunner.addonPrefix)
 
 GnomeRunner.playerGUID = UnitGUID("player")
 
--- Moved the definition of OnAddonLoaded above its call
+function GnomeRunner.OnEvent(self, event, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16, arg17, arg18, arg19, arg20)
+    if event == "ADDON_LOADED" and arg1 == "GnomeRunner" then
+        GnomeRunner.OnAddonLoaded()
+    elseif event == "PLAYER_DEAD" then
+        GnomeRunner.OnPlayerDead()
+    elseif event == "RAID_ROSTER_UPDATE" then
+        GnomeRunner.OnRaidRosterUpdate()
+    elseif event == "CHAT_MSG_ADDON" then
+        GnomeRunner.OnChatMsgAddon(arg1, arg2, arg3, arg4)
+    elseif event == "PLAYER_ENTERING_WORLD" then
+        GnomeRunner.OnPlayerEnteringWorld()
+    elseif event == "UNIT_HEALTH" then
+        GnomeRunner.OnUnitHealth(arg1)
+    end
+end
+
 function GnomeRunner.OnAddonLoaded()
-    local function Announcement()
-        if IsInRaid() then
-            print("GnomeRunner addon loaded!")
-            print("Gnome Runner is active! To start a race, please use /gr payout.")
-        end
+    local version = "1.0"
+    local message = string.format("Gnome Runner v%s Initialized. Join a Raid group and use /gr payout to start", version)
+
+    if IsInRaid() then
+        print(message)
+        SendChatMessage(message, "RAID")
     end
 
-    -- Immediate announcement for Gnome Runner usage
-    Announcement()
-
+    -- Add this debug message
+    print("Addon Loaded.")
+    
     GnomeRunner.RegisterSlashCommands()
     GnomeRunner.InitializeFrame()
+end
+
+function GnomeRunner.OnAddonUnload()
+    GnomeRunner.frame:UnregisterAllEvents()
+    GnomeRunner.frame:SetScript("OnEvent", nil)
+    GnomeRunner.frame = nil  -- Clear the frame reference
+
+    print("GnomeRunner addon unloaded.")
+end
+
+-- Register events for addon
+GnomeRunner.frame:RegisterEvent("ADDON_LOADED")
+GnomeRunner.frame:RegisterEvent("PLAYER_DEAD")
+GnomeRunner.frame:RegisterEvent("RAID_ROSTER_UPDATE")
+GnomeRunner.frame:RegisterEvent("CHAT_MSG_ADDON")
+GnomeRunner.frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+
+GnomeRunner.frame:SetScript("OnEvent", function(_, event, ...)
+    if event == "ADDON_LOADED" and ... == "GnomeRunner" then
+        GnomeRunner.OnAddonLoaded()
+    else
+        GnomeRunner.OnEvent(_, event, ...)
+    end
+end) 
+
+function GnomeRunner.OnUnitHealth(unit)
+    if unit == "player" and UnitHealth("player") == 0 then
+        -- Player has died, trigger death announcement
+        print("DEBUG: Player has died!")
+        GnomeRunner.OnPlayerDead()
+    end
 end
 
 GnomeRunner.UpdateTimer = function()
@@ -127,6 +174,10 @@ function GnomeRunner.CheckPlayer()
 
         GnomeRunner.CountRacers()
         GnomeRunner.totalDeaths = 0  -- Reset totalDeaths
+
+        -- Store the playerName and health for later use
+        GnomeRunner.lastDeadPlayer = playerName
+        GnomeRunner.lastDeadPlayerHealth = UnitHealth("player")
     end
 end
 
@@ -202,8 +253,10 @@ function GnomeRunner.StartRace()
                 print("Sending addon message: START_RACE")  -- Add this line for debugging
                 C_ChatInfo.SendAddonMessage(GnomeRunner.addonPrefix, "START_RACE", "RAID")  -- Add this line to trigger the sound
         
-                -- Add the following line to trigger the sound for all raid members
-                C_ChatInfo.SendAddonMessage(GnomeRunner.addonPrefix, "START_RACE_SOUND", "RAID")
+                -- Ensure the following line triggers the sound for all raid members only once
+                if IsInRaid() and UnitIsGroupLeader("player") then
+                    C_ChatInfo.SendAddonMessage(GnomeRunner.addonPrefix, "START_RACE_SOUND", "RAID")
+                end
             end
         end
         
@@ -227,34 +280,24 @@ function GnomeRunner.StartRace()
     end
 end
 
-function GnomeRunner.OnEvent(self, event, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16, arg17, arg18, arg19, arg20)
-    if event == "ADDON_LOADED" and arg1 == "GnomeRunner" then
-        GnomeRunner.OnAddonLoaded()
-    elseif event == "PLAYER_DEAD" then
-        GnomeRunner.OnPlayerDead()
-    elseif event == "RAID_ROSTER_UPDATE" then
-        GnomeRunner.OnRaidRosterUpdate()
-    elseif event == "CHAT_MSG_ADDON" then
-        GnomeRunner.OnChatMsgAddon(arg1, arg2, arg3, arg4)
-    elseif event == "PLAYER_ENTERING_WORLD" then
-        GnomeRunner.OnPlayerEnteringWorld()
-    end
-end
-
 -- Add a variable for the delay
-GnomeRunner.startDelay = 5
+GnomeRunner.startDelay = 0
 
 function GnomeRunner.OnGroupRosterUpdate()
     local function DelayedAnnouncement()
         if IsInRaid() then
-            print("GnomeRunner addon loaded!")
-            SendChatMessage("Gnome Runner is active! To start a race, please use /gr payout.", "RAID_WARNING")
+            -- Nothing here for now
         end
     end
-
-    -- Delayed announcement for Gnome Runner usage
+    
     C_Timer.After(GnomeRunner.startDelay, DelayedAnnouncement)
 
+    -- Print the addon loaded message without delay
+    local version = "1.0" -- Set your addon version here
+    local message = string.format("Gnome Runner v%s Initialized. Join a Raid group and use /gr payout to start", version)
+    print(message)
+
+    -- Move these outside of DelayedAnnouncement
     GnomeRunner.RegisterSlashCommands()
     GnomeRunner.InitializeFrame()
 end
@@ -263,41 +306,6 @@ GnomeRunner.frame:RegisterEvent("GROUP_ROSTER_UPDATE")
 GnomeRunner.frame:SetScript("OnEvent", function(_, event, ...)
     GnomeRunner.OnEvent(_, event, ...)
 end)
-
-function GnomeRunner.OnPlayerDead()
-    GnomeRunner.CheckPlayer()
-
-    if GnomeRunner.raceInProgress then
-        local playerName = UnitName("player")
-
-        if UnitIsGroupLeader("player") then
-            GnomeRunner.AnnouncePlayerDeath(playerName) -- Announce player death in raid chat
-
-            -- Additional: Use UNIT_HEALTH for more reliable tracking
-            -- Example: if UnitHealth("player") == 0 then
-            --     GnomeRunner.AnnouncePlayerDeath(playerName)
-            -- end
-        else
-            -- Additional: Verify raid leader status from CHAT_MSG_ADDON
-            local index = UnitInRaid("player")
-            if index then
-                local _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, isAssistant, _, _ = GetRaidRosterInfo(index)
-                if isAssistant or UnitIsGroupLeader("player") then
-                    C_ChatInfo.SendAddonMessage(GnomeRunner.addonPrefix, "PLAYER_DEAD:" .. playerName, "WHISPER", GnomeRunner.raidLeader)
-                end
-            else
-                print("Error: Player is not in raid.")
-            end
-        end
-
-        GnomeRunner.totalDeaths = GnomeRunner.totalDeaths + 1
-    end
-end
-
--- New function to announce player deaths in raid chat
-function GnomeRunner.AnnouncePlayerDeath(playerName)
-    SendChatMessage(playerName .. " has died!", "RAID")
-end
 
 -- Function to trigger the sound for race start
 GnomeRunner.PlayRaceStartSound = function()
@@ -317,8 +325,40 @@ function GnomeRunner.OnChatMsgAddon(prefix, message, channel, sender)
             PlaySoundFile(GnomeRunner.soundFile)
         elseif message == "START_RACE_SOUND" then
             PlaySoundFile(GnomeRunner.soundFile)
+        elseif strmatch(message, "PLAYER_DEAD:") then
+            -- Add debug message for receiving PLAYER_DEAD message
+            print("Received PLAYER_DEAD message.")
+            local _, deadPlayer = strsplit(":", message)
+            GnomeRunner.AnnouncePlayerDeath(deadPlayer)
         end
     end
+end
+
+function GnomeRunner.OnPlayerDead()
+    if GnomeRunner.raceInProgress then
+        if not GnomeRunner.lastDeadPlayer or not GnomeRunner.lastDeadPlayerHealth then
+            print("Error: Unable to retrieve player name or health for death announcement.")
+            return
+        end
+
+        if UnitIsGroupLeader("player") then
+            GnomeRunner.AnnouncePlayerDeath(GnomeRunner.lastDeadPlayer)
+            -- Add debug message for sending PLAYER_DEAD message
+            print("Sending PLAYER_DEAD message.")
+            C_ChatInfo.SendAddonMessage(GnomeRunner.addonPrefix, "PLAYER_DEAD:" .. GnomeRunner.lastDeadPlayer, "RAID")  -- Add this line to broadcast the death to the raid
+        else
+            C_ChatInfo.SendAddonMessage(GnomeRunner.addonPrefix, "PLAYER_DEAD:" .. GnomeRunner.lastDeadPlayer, "WHISPER", GnomeRunner.raidLeader)
+            -- Add debug message for sending PLAYER_DEAD message
+            print("Sending PLAYER_DEAD message to raid leader.")
+        end
+
+        GnomeRunner.totalDeaths = GnomeRunner.totalDeaths + 1
+    end
+end
+
+-- New function to announce player deaths in raid chat
+function GnomeRunner.AnnouncePlayerDeath(playerName)
+    SendChatMessage(playerName .. " has died!", "RAID")
 end
 
 function GnomeRunner.OnPlayerEnteringWorld()
@@ -387,6 +427,8 @@ function GnomeRunner.InitializeFrame()
     GnomeRunner.frame:SetScript("OnUpdate", function(_, elapsed)
         GnomeRunner.OnUpdate(elapsed)
     end)
+
+    GnomeRunner.frame:RegisterEvent("UNIT_HEALTH")
 end
 
 function GnomeRunner.OnUpdate(elapsed)
@@ -405,14 +447,3 @@ function GnomeRunner.PrintRaceInfo()
     print("Race In Progress: " .. tostring(GnomeRunner.raceInProgress))
     SendChatMessage(playerCountMsg, "RAID_WARNING")
 end
-
--- Register events for addon
-GnomeRunner.frame:RegisterEvent("ADDON_LOADED")
-GnomeRunner.frame:RegisterEvent("PLAYER_DEAD")
-GnomeRunner.frame:RegisterEvent("RAID_ROSTER_UPDATE")
-GnomeRunner.frame:RegisterEvent("CHAT_MSG_ADDON")
-GnomeRunner.frame:RegisterEvent("PLAYER_ENTERING_WORLD")
-
-GnomeRunner.frame:SetScript("OnEvent", function(_, event, ...)
-    GnomeRunner.OnEvent(_, event, ...)
-end)
